@@ -1,3 +1,4 @@
+const globalVars = {}
 // dummy functions just print name and arguments
 function drawPoint(point, color) {
     console.log(arguments.callee.name, arguments)
@@ -19,9 +20,14 @@ function rotate(line, angle) {
     return line
 }
 
-function _do(args) {
+function def(name, val) {
     console.log(arguments.callee.name, arguments)
-    return args[args.length - 1]
+    globalVars[name] = val
+    // TODO should def return val
+}
+
+function _do() {
+    return arguments[arguments.length - 1]
 }
 
 function evaluate(data) {
@@ -30,28 +36,71 @@ function evaluate(data) {
         drawLine,
         drawCircle,
         rotate,
-        do: _do
+        do: _do,
+        def
     }
 
-    const parseInstruction = (ins) => {
+    const zipObject = (props, values) => {
+        return props.reduce((acc, val, key) => {
+            acc[val] = values[key]
+            return acc
+        }, {})
+    }
+
+    const parseFnInstruction = (args, body, parentScope) => {
+        // create a new js function taking args and executing body
+        return (...values) => {
+            // values is name of args to new function
+            const funcScope = {
+                ...parentScope,
+                ...zipObject(args, values)
+            }
+            return parseInstruction(body, funcScope)
+        }
+    }
+
+    const parseInstruction = (ins, currentScope) => {
+        // instruction is a variable in current scope
+        if (currentScope[ins]) {
+            return currentScope[ins]
+        }
+
         if (!Array.isArray(ins)) {
             return ins
         }
 
         const [funcName, ...args] = ins
 
-        return fns[funcName](...args.map(parseInstruction))
+        if (funcName === 'fn') {
+            return parseFnInstruction(...args, currentScope)
+        }
+
+        const fn = fns[funcName] || currentScope[funcName]
+
+        return fn(...args.map(arg => parseInstruction(arg, currentScope)))
     }
 
-    parseInstruction(data)
+    parseInstruction(data, globalVars)
 }
 
-const data = [
-    'do',
+const data = ['do',
     ['drawPoint', { x: 0, y: 0}, 'blue'],
-    ['rotate',
-        ['drawLine', { x: 0, y: 0}, { x: 1, y: 1 }, 'yellow'],
-        90]
+    ['def',
+        'myShape',
+        ['drawLine', { x: 0, y: 0}, { x: 1, y: 1 }, 'yellow']
+    ],
+    ['rotate', 'myShape', 90],
+    ['def',
+        'drawTriangle',
+        ['fn', ['a', 'b', 'c', 'color'],
+            ['do',
+                ['drawLine', 'a', 'b', 'color'],
+                ['drawLine', 'b', 'c', 'color'],
+                ['drawLine', 'c', 'a', 'color']
+            ]
+        ]
+    ],
+    ['drawTriangle', { x: 0, y: 0 }, { x: 1, y: 1}, { x: 0, y: 1 }, 'blue'],
 ]
 
 evaluate(data)
