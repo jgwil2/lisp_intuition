@@ -1,93 +1,27 @@
-const globalVars = {};
-// dummy functions just print name and arguments
-function drawPoint(point, color) {
-  console.log(arguments.callee.name, arguments);
-  return { point, color };
+const Canvas = require("drawille-canvas");
+const Evaluator = require("./src/evaluator");
+
+const canvas = new Canvas();
+const ctx = canvas.getContext("2d");
+
+function drawLine(start, end, color) {
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.color = color;
+  ctx.stroke();
 }
 
-function drawLine(pointA, pointB, color) {
-  console.log(arguments.callee.name, arguments);
-  return { pointA, pointB, color };
-}
-
-function drawCircle(point, radius, color) {
-  console.log(arguments.callee.name, arguments);
-  return { point, radius, color };
-}
-
-function rotate(line, angle) {
-  console.log(arguments.callee.name, arguments);
-  return line;
-}
-
-function def(name, val) {
-  console.log(arguments.callee.name, arguments);
-  globalVars[name] = val;
-  // TODO should def return val
-}
-
-function _do() {
-  return arguments[arguments.length - 1];
-}
-
-function evaluate(data) {
-  const fns = {
-    drawPoint,
-    drawLine,
-    drawCircle,
-    rotate,
-    do: _do,
-    def,
-  };
-
-  const zipObject = (props, values) => {
-    return props.reduce((acc, val, key) => {
-      acc[val] = values[key];
-      return acc;
-    }, {});
-  };
-
-  const parseFnInstruction = (args, body, parentScope) => {
-    // create a new js function taking args and executing body
-    return (...values) => {
-      // values is name of args to new function
-      const funcScope = {
-        ...parentScope,
-        ...zipObject(args, values),
-      };
-      return parseInstruction(body, funcScope);
-    };
-  };
-
-  const parseInstruction = (ins, currentScope) => {
-    // instruction is a variable in current scope
-    if (currentScope[ins]) {
-      return currentScope[ins];
-    }
-
-    if (!Array.isArray(ins)) {
-      return ins;
-    }
-
-    const [funcName, ...args] = ins;
-
-    if (funcName === "fn") {
-      return parseFnInstruction(...args, currentScope);
-    }
-
-    const fn = fns[funcName] || currentScope[funcName];
-
-    return fn(...args.map((arg) => parseInstruction(arg, currentScope)));
-  };
-
-  parseInstruction(data, globalVars);
+function drawCircle(center, radius, color) {
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 const data = [
   "do",
-  ["drawPoint", { x: 0, y: 0 }, "blue"],
-  ["def", "myShape", ["drawLine", { x: 0, y: 0 }, { x: 1, y: 1 }, "yellow"]],
-  ["rotate", "myShape", 90],
+  ["drawCircle", { x: 50, y: 50 }, 30, "blue"],
   [
     "def",
     "drawTriangle",
@@ -102,7 +36,15 @@ const data = [
       ],
     ],
   ],
-  ["drawTriangle", { x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }, "blue"],
+  [
+    "drawTriangle",
+    { x: 0, y: 0 },
+    { x: 100, y: 100 },
+    { x: 100, y: 0 },
+    "blue",
+  ],
 ];
 
-evaluate(data);
+const evaluator = new Evaluator({ drawLine, drawCircle });
+evaluator.evaluate(data);
+console.log(ctx.toString());
