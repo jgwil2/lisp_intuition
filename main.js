@@ -1,3 +1,6 @@
+const process = require("process");
+const fs = require("fs");
+
 const Canvas = require("drawille-canvas");
 const Evaluator = require("./src/evaluator");
 
@@ -19,32 +22,15 @@ function drawCircle(center, radius, color) {
   ctx.fill();
 }
 
-const data = [
-  "do",
-  ["drawCircle", { x: 50, y: 50 }, 30, "blue"],
-  [
-    "def",
-    "drawTriangle",
-    [
-      "fn",
-      ["a", "b", "c", "color"],
-      [
-        "do",
-        ["drawLine", "a", "b", "color"],
-        ["drawLine", "b", "c", "color"],
-        ["drawLine", "c", "a", "color"],
-      ],
-    ],
-  ],
-  [
-    "drawTriangle",
-    { x: 0, y: 0 },
-    { x: 100, y: 100 },
-    { x: 100, y: 0 },
-    "blue",
-  ],
-];
+function main() {
+  const evaluator = new Evaluator({ drawLine, drawCircle });
+  process.argv.slice(2).forEach((val) => {
+    fs.readFile(val, "utf-8", (err, data) => {
+      if (err) throw err;
+      evaluator.evaluate(JSON.parse(data));
+      console.log(ctx.toString());
+    });
+  });
+}
 
-const evaluator = new Evaluator({ drawLine, drawCircle });
-evaluator.evaluate(data);
-console.log(ctx.toString());
+main();
